@@ -14,9 +14,19 @@ dotenv.config();
 
 const app = express();
 
+// 🔐 CORS (important for Vercel frontend)
+app.use(cors({
+  origin: process.env.CLIENT_URL || "*",
+  credentials: true
+}));
+
 // Middleware
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(express.json());
+
+// ✅ Root route (fixes "Cannot GET /")
+app.get("/", (req, res) => {
+  res.send("LearnSphere API is running 🚀");
+});
 
 // Routes
 app.use('/api/auth',      authRoutes);
@@ -24,20 +34,29 @@ app.use('/api/users',     userRoutes);
 app.use('/api/courses',   courseRoutes);
 app.use('/api/quizzes',   quizRoutes);
 app.use('/api/analytics', analyticsRoutes);
-app.use('/api/activity', activityRoutes);
+app.use('/api/activity',  activityRoutes);
 
 // Health check
-app.get('/api/health', (_, res) => res.json({ status: 'LearnSphere API running ✅' }));
+app.get('/api/health', (_, res) => {
+  res.json({ status: 'LearnSphere API running ✅' });
+});
+
+// 🔧 Port fallback (important for Render)
+const PORT = process.env.PORT || 10000;
 
 // DB + Server
 mongoose
-  .connect(process.env.MONGO_URI!)
+  .connect(process.env.MONGO_URI as string)
   .then(() => {
     console.log('✅ MongoDB connected');
-    app.listen(process.env.PORT, () =>
-      console.log(`🚀 Server running on port ${process.env.PORT}`)
-    );
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+    });
   })
-  .catch(err => console.error('❌ MongoDB error:', err));
+  .catch(err => {
+    console.error('❌ MongoDB error:', err);
+    process.exit(1); // crash if DB fails
+  });
 
 export default app;
